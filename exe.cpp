@@ -1,5 +1,7 @@
 #include "exe.hpp"
+#include <iomanip>
 #include <fstream>
+#include <sstream>
 #include <iostream>
 
 Exe::Exe()
@@ -67,6 +69,7 @@ bool Exe::test(const std::string &filename)
     loaded = false;
     uint32_t vint = 0;
     char machine = -1;
+    size_t text_id = 96;
     EXE_header EXEHeader;
 
     std::cout << "##### " << filename << " #####" << std::endl;
@@ -121,11 +124,42 @@ bool Exe::test(const std::string &filename)
         {
             fi.read((char*)&EXEHeader.SectionHeader[i], sizeof(Section_header));
             std::cout << "Section " << i << ": " << EXEHeader.SectionHeader[i].Name << std::endl;
+            if(std::string((char*)EXEHeader.SectionHeader[i].Name) == ".text")
+                text_id = i;
         }
     }
 
     /* ---------------------------------
     TODO: code dumping
     --------------------------------- */
+    // .text dumping
+    if(text_id == 96)
+    {
+        std::cout << "No .text section" << std::endl;
+
+    }
+    else
+    {
+        fi.seekg(EXEHeader.SectionHeader[text_id].Misc.PhysicalAddress, fi.beg);
+        std::ofstream fo(filename + ".txt", std::ios::out | std::ios::trunc | std::ios::binary);
+        if(fo)
+        {
+            vint = 8;
+            std::cout << ".text size: " << EXEHeader.SectionHeader[text_id].SizeOfRawData << std::endl;
+            for(size_t i = 0; i < EXEHeader.SectionHeader[text_id].SizeOfRawData; ++i)
+            {
+                std::stringstream ss;
+                if(i % 16 == 0)
+                {
+                    if(i != 0) ss << std::endl;
+                    ss << std::setfill('0') << std::setw(8) << std::hex << i << ": ";
+                }
+                fi.read((char*)&vint, 1);
+                ss << std::setfill('0') << std::setw(2) << std::hex << vint << " ";
+                if(!ss.str().empty())
+                    fo.write(ss.str().c_str(), ss.str().size());
+            }
+        }
+    }
     return true;
 }
